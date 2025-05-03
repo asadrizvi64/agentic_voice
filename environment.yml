@@ -1,0 +1,14 @@
+name: registration-agents
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - pyttsx3
+  - speechrecognition
+  - pyaudio
+  - tk
+  - pip
+  - pip:
+    - langchain>=0.1.1
+    - langgraph>=0.0.20
