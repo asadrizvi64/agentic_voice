@@ -87,74 +87,74 @@ class OrchestrationAgent:
         return {
             "welcome": PromptTemplate(
                 input_variables=["user_name"],
-                template="Hello{user_part}! I'm here to help you with your registration. What would you like to do today?"
+                template="Hello{user_name}! I'm here to help you with your registration. What would you like to do today?"
             ),
             "gathering_info": PromptTemplate(
                 input_variables=["profile", "missing_fields"],
                 template="""Given the following user profile information:
-Profile: {profile}
-Missing Fields: {missing_fields}
+    Profile: {profile}
+    Missing Fields: {missing_fields}
 
-Generate a friendly, conversational response that:
-1. Acknowledges any information that was provided
-2. Naturally asks for the missing information without using labels like "name:", "email:", etc.
-3. Maintains a warm, helpful tone
+    Generate a friendly, conversational response that:
+    1. Acknowledges any information that was provided
+    2. Naturally asks for the missing information without using labels like "name:", "email:", etc.
+    3. Maintains a warm, helpful tone
 
-Response:"""
+    Response:"""
             ),
             "password_needed": PromptTemplate(
                 input_variables=["profile"],
                 template="""Given the following user profile information:
-Profile: {profile}
+    Profile: {profile}
 
-Generate a friendly response that:
-1. Thanks the user for providing their information
-2. Naturally asks for a password to complete registration
-3. Maintains a warm, helpful tone
+    Generate a friendly response that:
+    1. Thanks the user for providing their information
+    2. Naturally asks for a password to complete registration
+    3. Maintains a warm, helpful tone
 
-Response:"""
+    Response:"""
             ),
             "confirming": PromptTemplate(
                 input_variables=["profile"],
                 template="""Given the following user profile information:
-Profile: {profile}
+    Profile: {profile}
 
-Generate a confirmation message that:
-1. Displays the collected information in a clear format
-2. Asks the user to confirm if the information is correct to complete registration
-3. Maintains a warm, helpful tone
+    Generate a confirmation message that:
+    1. Displays the collected information in a clear format
+    2. Asks the user to confirm if the information is correct to complete registration
+    3. Maintains a warm, helpful tone
 
-Response:"""
+    Response:"""
             ),
             "completed": PromptTemplate(
                 input_variables=["user_id", "profile"],
                 template="""Given the following user registration result:
-User ID: {user_id}
-Profile: {profile}
+    User ID: {user_id}
+    Profile: {profile}
 
-Generate a friendly completion message that:
-1. Congratulates the user on successful registration
-2. Mentions their user ID
-3. Briefly explains what they can do next
-4. Maintains a warm, helpful tone
+    Generate a friendly completion message that:
+    1. Congratulates the user on successful registration
+    2. Mentions their user ID
+    3. Briefly explains what they can do next
+    4. Maintains a warm, helpful tone
 
-Response:"""
+    Response:"""
             ),
             "failed": PromptTemplate(
                 input_variables=["error"],
                 template="""Given the following registration error:
-Error: {error}
+    Error: {error}
 
-Generate a sympathetic response that:
-1. Apologizes for the issue
-2. Explains what went wrong in simple terms
-3. Suggests what they might try next
-4. Maintains a warm, helpful tone
+    Generate a sympathetic response that:
+    1. Apologizes for the issue
+    2. Explains what went wrong in simple terms
+    3. Suggests what they might try next
+    4. Maintains a warm, helpful tone
 
-Response:"""
+    Response:"""
             )
         }
-    
+
     def _generate_llm_response(self, template_key, **kwargs):
         """Generate a dynamic response using the LLM"""
         if self.llm is None:
