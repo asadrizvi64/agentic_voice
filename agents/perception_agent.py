@@ -8,23 +8,22 @@ Responsible for understanding user input, detecting intents, and extracting enti
 """
 
 import re
-from typing import Dict, Any, Tuple
-from langchain.chat_models import ChatOpenAI
-from langchain.prompts import PromptTemplate
+from typing import Dict, Any, Tuple, Optional
 from langchain.chains import LLMChain
+from langchain.prompts import PromptTemplate
 
 class PerceptionAgent:
     """Agent responsible for understanding user input."""
     
-    def __init__(self, api_key=None, model="gpt-3.5-turbo"):
-        """Initialize the perception agent"""
-        self.intent_patterns = self._initialize_intent_patterns()
+    def __init__(self, llm=None):
+        """
+        Initialize the perception agent
         
-        # Set up LLM if API key provided
-        if api_key:
-            self.llm = ChatOpenAI(api_key=api_key, temperature=0, model=model)
-        else:
-            self.llm = None
+        Args:
+            llm: LLM instance (Ollama or any other LangChain compatible LLM)
+        """
+        self.intent_patterns = self._initialize_intent_patterns()
+        self.llm = llm
     
     def _initialize_intent_patterns(self):
         """Initialize intent detection patterns"""

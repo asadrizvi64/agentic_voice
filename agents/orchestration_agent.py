@@ -12,6 +12,9 @@ from langgraph.graph import END, StateGraph
 from enum import Enum
 from typing import Dict, List, Any, TypedDict, Literal
 
+# Import Ollama instead of ChatOpenAI
+from langchain_community.llms import Ollama
+
 from agents.perception_agent import PerceptionAgent
 from agents.memory_agent import MemoryAgent
 from agents.action_agent import ActionAgent
@@ -39,17 +42,23 @@ class RegistrationState(TypedDict):
 class OrchestrationAgent:
     """Agent responsible for coordinating the multi-agent system."""
     
-    def __init__(self, api_key=None, model="gpt-3.5-turbo"):
+    def __init__(self, base_url="http://localhost:11434", model="llama3"):
         """
         Initialize the orchestration agent.
         
         Args:
-            api_key: OpenAI API key (optional)
+            base_url: Ollama API base URL
             model: LLM model to use
         """
+        # Initialize Ollama
+        ollama_llm = Ollama(
+            model=model,
+            base_url=base_url
+        )
+        
         # Initialize agents
         self.memory_agent = MemoryAgent()
-        self.perception_agent = PerceptionAgent(api_key, model)
+        self.perception_agent = PerceptionAgent(llm=ollama_llm)
         self.action_agent = ActionAgent(self.memory_agent)
         
         # Session storage
@@ -247,7 +256,12 @@ class OrchestrationAgent:
         
         # Run the graph
         for event in self.graph.stream(state):
-            state = event.state
+            if hasattr(event, 'state'):
+                state = event.state
+            else:
+                # Handle the new format where event is AddableUpdatesDict
+                # Just continue with the current state
+                pass
         
         # Update session state
         self.sessions[session_id] = state

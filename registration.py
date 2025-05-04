@@ -14,7 +14,7 @@ import langgraph.graph as lg
 from langgraph.graph import END, StateGraph
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
-from langchain.chat_models import ChatOpenAI
+from langchain_community.chat_models import ChatOpenAI
 from langchain.schema import SystemMessage, HumanMessage
 
 from db import SimpleDB
