@@ -13,6 +13,7 @@ import time
 import os
 import logging
 from typing import Dict, Any, List, Optional
+from agents.orchestration_agent import OrchestrationAgent
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -32,7 +33,6 @@ except ImportError:
     logger.warning("speech_recognition not found. Speech-to-text will be disabled.")
     sr = None
 
-from agents.orchestration_agent import OrchestrationAgent
 
 class ChatInterface:
     """Chat interface with TTS and STT for the registration system"""
