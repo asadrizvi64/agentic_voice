@@ -103,7 +103,7 @@ class OrchestrationAgent:
         builder.set_entry_point("process_message")
         
         # Compile with higher recursion limit as a safety measure
-        return builder.compile(recursion_limit=50)
+        return builder.compile()
     
     def _process_message_node(self, state: RegistrationState) -> RegistrationState:
         """First node: Process the incoming message"""
