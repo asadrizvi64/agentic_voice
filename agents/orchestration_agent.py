@@ -76,7 +76,7 @@ class OrchestrationAgent:
         # Session storage
         self.sessions = {}
         
-        # Build the workflow graph
+        # Build the workflow graph with increased recursion limit
         try:
             self.graph = self._build_registration_graph()
             print("Registration graph built successfully")
@@ -87,8 +87,9 @@ class OrchestrationAgent:
     
     def _build_registration_graph(self):
         """Build the graph for the registration workflow"""
-        # Create the graph
+        # Create the graph with increased recursion limit
         builder = StateGraph(RegistrationState)
+        builder.set_graph_config(recursion_limit=5)  # Reduced recursion limit to avoid infinite loops
         
         # Add nodes
         builder.add_node("initialize", self._initialize_state)
@@ -99,7 +100,7 @@ class OrchestrationAgent:
         
         # Add edges
         builder.add_edge("initialize", "identify_missing_info")
-        builder.add_edge("identify_missing_info", "process_input")
+        builder.add_edge("identify_missing_info", "generate_response")  # Changed to avoid loop
         
         # Add conditional edges
         builder.add_conditional_edges(
@@ -122,10 +123,9 @@ class OrchestrationAgent:
         # Add conditional edge from generate_response to either END or process_input
         builder.add_conditional_edges(
             "generate_response",
-            lambda state: END if state["status"] in [RegistrationStatus.COMPLETED, RegistrationStatus.FAILED] else "process_input",
+            lambda state: END,  # Always end after generate_response
             {
-                END: END,
-                "process_input": "process_input"
+                END: END
             }
         )
         
@@ -160,6 +160,15 @@ class OrchestrationAgent:
             if "name" in entities:
                 state["system_message"] += f"I've recorded your name as {entities['name']}. "
             
+            if "email" in entities:
+                state["system_message"] += f"I've recorded your email as {entities['email']}. "
+                
+            if "phone" in entities:
+                state["system_message"] += f"I've recorded your phone as {entities['phone']}. "
+                
+            if "address" in entities:
+                state["system_message"] += f"I've recorded your address as {entities['address']}. "
+            
             if len(entities) > 0:
                 state["system_message"] += "What else would you like to provide? We need your name, email, phone, and address to complete registration."
             else:
@@ -193,7 +202,8 @@ class OrchestrationAgent:
                     state["system_message"] = "Please provide a password to complete your registration."
             else:
                 # Missing fields
-                state["system_message"] = result["message"]
+                missing = ", ".join(state["missing_fields"])
+                state["system_message"] = f"I still need your {missing} to complete registration. Could you please provide this information?"
             
             print(f"Updated state after missing info check: {state}")
         except Exception as e:
@@ -342,56 +352,34 @@ class OrchestrationAgent:
             session_id = self.create_session()
         
         # Get current state
-        state = self.sessions[session_id]
+        state = self.sessions[session_id].copy()  # Make a copy to avoid issues
         
         # Update current message
         state["current_message"] = message
         
-        # Run the graph
+        # Process message manually without the graph
         try:
-            print("Running state graph...")
-            # Deep copy state for debug purposes
-            initial_state = json.dumps(state)
+            # First initialize the state
+            state = self._initialize_state(state)
             
-            events = list(self.graph.stream(state))
-            print(f"Graph stream completed with {len(events)} events")
+            # Then identify missing info
+            state = self._identify_missing_info(state)
             
-            # Process events and update state
-            for i, event in enumerate(events):
-                print(f"Processing event {i+1}/{len(events)}: {type(event)}")
-                
-                if hasattr(event, 'state'):
-                    state = event.state
-                    print(f"State updated from event.state")
-                elif hasattr(event, 'updates') and event.updates:
-                    print(f"Event has updates: {event.updates}")
-                    # This is likely an AddableUpdatesDict
-                    # We can try to apply updates manually
-                    try:
-                        for key, value in event.updates.items():
-                            if key in state:
-                                state[key] = value
-                                print(f"Updated state[{key}] manually")
-                    except Exception as update_err:
-                        print(f"Error applying updates: {update_err}")
-                else:
-                    print(f"Unknown event type or structure: {event}")
-                    
-            # Check if state was actually updated
-            if initial_state == json.dumps(state):
-                print("WARNING: State did not change after graph execution!")
-                # Add a fallback response
-                state["system_message"] = f"I've received your message: '{message}'. Please provide your registration information (name, email, phone, address)."
-                
+            # Generate response
+            state = self._generate_response(state)
+            
+            # If we're ready to register and the user confirmed, do it
+            if self._should_register(state):
+                state = self._register_user(state)
+                state = self._generate_response(state)
+            
         except Exception as e:
-            print(f"Error running graph: {e}")
+            print(f"Error processing message: {e}")
             traceback.print_exc()
-            # Set a fallback response
-            state["system_message"] = f"I've received your message: '{message}'. Let me help you with your registration."
+            state["system_message"] = f"I've received your message: '{message}'. Please provide your name, email, phone, and address for registration."
         
         # Update session state
         self.sessions[session_id] = state
-        print(f"Final state: {state}")
         
         # Prepare response
         response = {

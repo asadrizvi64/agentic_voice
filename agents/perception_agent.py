@@ -59,6 +59,8 @@ class PerceptionAgent:
         # Extract entities
         entities = self.extract_entities(text)
         
+        print(f"Processed input: '{text}' -> intent: {intent}, confidence: {confidence}, entities: {entities}")
+        
         return {
             "raw_input": text,
             "intent": intent,
@@ -110,39 +112,68 @@ class PerceptionAgent:
         """
         entities = {}
         
-        # Extract name
-        name_match = re.search(r"(?i)name\s+(?:is\s+)?([A-Za-z\s\-'\.]+)(?:,|\.|$|\s+and)", text)
-        if name_match:
-            entities["name"] = name_match.group(1).strip()
+        # Extract name - improved pattern to handle more formats
+        name_patterns = [
+            r"(?i)name\s+(?:is\s+)?([A-Za-z\s\-'\.]+)(?:,|\.|$|\s+and)",
+            r"(?i)(?:i am|i'm|this is)\s+([A-Za-z\s\-'\.]{2,})(?:,|\.|$|\s+and)",
+            r"(?i)register\s+(?:for|a)?\s*([A-Za-z\s\-'\.]{2,})(?:,|\.|$|\s+and|\s+with)",
+            r"(?i)register\s+([A-Za-z\s\-'\.]{2,})(?:,|\.|$|\s+and|\s+with)"
+        ]
+        
+        for pattern in name_patterns:
+            name_match = re.search(pattern, text)
+            if name_match:
+                name = name_match.group(1).strip()
+                # Avoid capturing obvious non-names
+                if not any(word in name.lower() for word in ["user", "account", "profile", "please", "would", "could", "want", "like"]):
+                    entities["name"] = name
+                    break
         
         # Extract email
         email_match = re.search(r"([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)", text)
         if email_match:
             entities["email"] = email_match.group(1)
         
-        # Extract phone
-        phone_match = re.search(r"(?i)phone\s+(?:number\s+)?(?:is\s+)?([0-9\s\-\+\(\)]{7,})", text)
-        if phone_match:
-            entities["phone"] = phone_match.group(1).strip()
-        else:
-            # Try alternative phone pattern
-            phone_match = re.search(r"(?<!\w)(\+?[0-9][\s\-\(\)0-9]{6,})(?!\w)", text)
+        # Extract phone - improved pattern
+        phone_patterns = [
+            r"(?i)phone\s+(?:number\s+)?(?:is\s+)?([0-9\s\-\+\(\)]{7,})",
+            r"(?<!\w)(\+?[0-9][\s\-\(\)0-9]{6,})(?!\w)",
+            r"(?i)at\s+(\+?[0-9][\s\-\(\)0-9]{6,})"
+        ]
+        
+        for pattern in phone_patterns:
+            phone_match = re.search(pattern, text)
             if phone_match:
                 entities["phone"] = phone_match.group(1).strip()
+                break
         
-        # Extract address
-        address_match = re.search(r"(?i)address\s+(?:is\s+)?(.+?)(?:\.|$)", text)
-        if address_match:
-            entities["address"] = address_match.group(1).strip()
-        else:
-            # Try alternative address pattern
-            address_match = re.search(r"(?i)(?:at|on|live\s+at)\s+(\d+\s+[A-Za-z\s\.\,]+)", text)
+        # Extract address - improved pattern
+        address_patterns = [
+            r"(?i)address\s+(?:is\s+)?(.+?)(?:\.|$)",
+            r"(?i)(?:at|on|live\s+at)\s+(\d+\s+[A-Za-z\s\.\,]+)",
+            r"(?i)staying\s+(?:at|in)\s+(.+?)(?:\.|$)",
+            r"(?i)located\s+(?:at|in)\s+(.+?)(?:\.|$)"
+        ]
+        
+        for pattern in address_patterns:
+            address_match = re.search(pattern, text)
             if address_match:
                 entities["address"] = address_match.group(1).strip()
+                break
         
         # Extract password
         password_match = re.search(r"(?i)password\s+(?:is\s+)?([A-Za-z0-9\s\-'\.\!\@\#\$\%\^\&\*\(\)]{6,})(?:,|\.|$)", text)
         if password_match:
             entities["password"] = password_match.group(1).strip()
+        
+        # Special case for registration with name in a simple format
+        if "register" in text.lower() and "name" not in entities:
+            # Try to find a name after "register"
+            register_name_match = re.search(r"(?i)register\s+(?:a\s+)?(?:user\s+)?(?:for\s+)?([A-Za-z\s\-'\.]{2,})(?:,|\.|$|\s+and)", text)
+            if register_name_match:
+                name = register_name_match.group(1).strip()
+                # Avoid capturing obvious non-names
+                if len(name.split()) <= 3 and not any(word in name.lower() for word in ["user", "account", "profile", "please", "would", "could", "want", "like", "this", "then"]):
+                    entities["name"] = name
         
         return entities
