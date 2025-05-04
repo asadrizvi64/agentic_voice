@@ -184,61 +184,68 @@ class ChatInterface:
                 # Update status
                 self.root.after(0, lambda: self.status_var.set("Status: Processing..."))
                 
-                # Show agent activity
-                self.root.after(0, lambda: self._update_agent_activity("perception"))
+                # Show agent activity for perception
+                self.root.after(0, lambda msg=message: self._update_agent_activity("perception"))
                 
                 # Process message
                 response = self.orchestration_agent.process_message(self.session_id, message)
                 
-                # Show agent activity
-                self.root.after(0, lambda: self._update_agent_activity("memory"))
-                self.root.after(500, lambda: self._update_agent_activity("action"))
-                self.root.after(1000, lambda: self._update_agent_activity("orchestration"))
+                # Get a reference to the response for use in lambda functions
+                response_ref = response
+                
+                # Show agent activity for other agents with delays
+                self.root.after(500, lambda: self._update_agent_activity("memory"))
+                self.root.after(1000, lambda: self._update_agent_activity("action"))
+                self.root.after(1500, lambda: self._update_agent_activity("orchestration"))
                 
                 # Update status
-                self.root.after(1500, lambda: self.status_var.set(f"Status: {response['status']}"))
+                self.root.after(2000, lambda r=response_ref: self.status_var.set(f"Status: {r['status']}"))
                 
                 # Show response after slight delay to simulate agent thinking
-                self.root.after(2000, lambda: self._add_message(response["message"], "system"))
+                self.root.after(2500, lambda r=response_ref: self._add_message(r["message"], "system"))
                 
                 # Speak response
-                self.root.after(2000, lambda: self._speak(response["message"]))
+                self.root.after(2500, lambda r=response_ref: self._speak(r["message"]))
                 
                 # Mark as done
                 self.message_queue.task_done()
                 
                 # Reset agent activity
-                self.root.after(3000, lambda: self._reset_agent_activity())
+                self.root.after(3500, lambda: self._reset_agent_activity())
             except queue.Empty:
                 pass
             except Exception as e:
                 print(f"Error processing message: {e}")
+                import traceback
+                traceback.print_exc()
                 self.root.after(0, lambda: self.status_var.set(f"Status: Error: {e}"))
                 try:
                     self.message_queue.task_done()
                 except:
                     pass
-            
-            time.sleep(0.1)
-    
+                
+                time.sleep(0.1) 
+
     def _update_agent_activity(self, agent_type):
         """Update agent activity indicators"""
         # Find all agent status labels
         for child in self.root.winfo_children():
             if isinstance(child, ttk.Frame):
                 for subchild in child.winfo_children():
-                    if isinstance(subchild, ttk.LabelFrame) and subchild.winfo_text() == "Agent Status":
-                        for agent_label in subchild.winfo_children():
-                            if isinstance(agent_label, ttk.Label):
-                                label_text = agent_label.cget("text").lower()
-                                if agent_type == "perception" and "perception" in label_text:
-                                    agent_label.config(foreground="red", font=("Arial", 9, "bold"))
-                                elif agent_type == "memory" and "memory" in label_text:
-                                    agent_label.config(foreground="red", font=("Arial", 9, "bold"))
-                                elif agent_type == "action" and "action" in label_text:
-                                    agent_label.config(foreground="red", font=("Arial", 9, "bold"))
-                                elif agent_type == "orchestration" and "orchestration" in label_text:
-                                    agent_label.config(foreground="red", font=("Arial", 9, "bold"))
+                    if isinstance(subchild, ttk.LabelFrame):
+                        # Check the text option of the LabelFrame instead of using winfo_text()
+                        if subchild.cget("text") == "Agent Status":
+                            for agent_label in subchild.winfo_children():
+                                if isinstance(agent_label, ttk.Label):
+                                    label_text = agent_label.cget("text").lower()
+                                    if agent_type == "perception" and "perception" in label_text:
+                                        agent_label.config(foreground="red", font=("Arial", 9, "bold"))
+                                    elif agent_type == "memory" and "memory" in label_text:
+                                        agent_label.config(foreground="red", font=("Arial", 9, "bold"))
+                                    elif agent_type == "action" and "action" in label_text:
+                                        agent_label.config(foreground="red", font=("Arial", 9, "bold"))
+                                    elif agent_type == "orchestration" and "orchestration" in label_text:
+                                        agent_label.config(foreground="red", font=("Arial", 9, "bold"))
     
     def _reset_agent_activity(self):
         """Reset all agent activity indicators"""
@@ -246,7 +253,18 @@ class ChatInterface:
         for child in self.root.winfo_children():
             if isinstance(child, ttk.Frame):
                 for subchild in child.winfo_children():
-                    if isinstance(subchild, ttk.LabelFrame) and subchild.winfo_text() == "Agent Status":
-                        for agent_label in subchild.winfo_children():
-                            if isinstance(agent_label, ttk.Label):
-                                agent_label.config(foreground="green", font=("Arial", 9, "normal"))
+                    if isinstance(subchild, ttk.LabelFrame):
+                        # Check the text option of the LabelFrame instead of using winfo_text()
+                        if subchild.cget("text") == "Agent Status":
+                            for agent_label in subchild.winfo_children():
+                                if isinstance(agent_label, ttk.Label):
+                                    agent_label.config(foreground="green", font=("Arial", 9, "normal"))
+            """Reset all agent activity indicators"""
+            # Find all agent status labels
+            for child in self.root.winfo_children():
+                if isinstance(child, ttk.Frame):
+                    for subchild in child.winfo_children():
+                        if isinstance(subchild, ttk.LabelFrame) and subchild.winfo_text() == "Agent Status":
+                            for agent_label in subchild.winfo_children():
+                                if isinstance(agent_label, ttk.Label):
+                                    agent_label.config(foreground="green", font=("Arial", 9, "normal"))
