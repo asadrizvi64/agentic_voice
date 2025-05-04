@@ -294,9 +294,31 @@ class RegistrationSystem:
         state["current_message"] = message
         
         # Run the graph
-        for event in self.graph.stream(state):
-            state = event.state
-        
+        # Replace the event loop with this
+        final_state = None
+        try:
+            for event in self.graph.stream(state):
+                if hasattr(event, 'state'):
+                    final_state = event.state
+                elif hasattr(event, 'updates') and event.updates:
+                    # Handle newer LangGraph event format
+                    if not final_state:
+                        final_state = state.copy()
+                    for key, value in event.updates.items():
+                        if key in final_state:
+                            final_state[key] = value
+            
+            # Use the final state if available, otherwise use the original state
+            state = final_state if final_state else state
+        except Exception as e:
+            print(f"Graph processing error: {e}")
+            # Return a graceful error response
+            return {
+                "session_id": session_id,
+                "message": "I'm having trouble processing your request. Could you try again?",
+                "status": "error"
+            }
+
         # Update session state
         self.sessions[session_id] = state
         

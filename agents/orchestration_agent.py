@@ -129,7 +129,7 @@ class OrchestrationAgent:
         builder.set_entry_point("initialize")
         
         # Compile the graph with increased recursion limit
-        return builder.compile(recursion_limit=50)
+        return builder.compile(recursion_limit=100)
     
     def _decide_next_step(self, state: RegistrationState) -> str:
         """Decide the next step in the workflow based on the current state"""
