@@ -11,7 +11,7 @@ import threading
 import queue
 import time
 import os
-import dict
+from typing import Dict, Any, List, Optional
 # For TTS
 import pyttsx3
 
