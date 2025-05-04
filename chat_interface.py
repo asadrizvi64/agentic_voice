@@ -175,57 +175,55 @@ class ChatInterface:
         self.chat_display.see(tk.END)
         self.chat_display.config(state=tk.DISABLED)
     
-    def _process_messages(self):
-        """Process messages in the queue"""
-        while True:
-            try:
-                message = self.message_queue.get(timeout=0.1)
-                
-                # Update status
-                self.root.after(0, lambda: self.status_var.set("Status: Processing..."))
-                
-                # Show agent activity for perception
-                self.root.after(0, lambda msg=message: self._update_agent_activity("perception"))
-                
-                # Process message
-                response = self.orchestration_agent.process_message(self.session_id, message)
-                
-                # Get a reference to the response for use in lambda functions
-                response_ref = response
-                
-                # Show agent activity for other agents with delays
-                self.root.after(500, lambda: self._update_agent_activity("memory"))
-                self.root.after(1000, lambda: self._update_agent_activity("action"))
-                self.root.after(1500, lambda: self._update_agent_activity("orchestration"))
-                
-                # Update status
-                self.root.after(2000, lambda r=response_ref: self.status_var.set(f"Status: {r['status']}"))
-                
-                # Show response after slight delay to simulate agent thinking
-                self.root.after(2500, lambda r=response_ref: self._add_message(r["message"], "system"))
-                
-                # Speak response
-                self.root.after(2500, lambda r=response_ref: self._speak(r["message"]))
-                
-                # Mark as done
-                self.message_queue.task_done()
-                
-                # Reset agent activity
-                self.root.after(3500, lambda: self._reset_agent_activity())
-            except queue.Empty:
-                pass
-            except Exception as e:
-                print(f"Error processing message: {e}")
-                import traceback
-                traceback.print_exc()
-                self.root.after(0, lambda: self.status_var.set(f"Status: Error: {e}"))
-                try:
-                    self.message_queue.task_done()
-                except:
-                    pass
-                
-                time.sleep(0.1) 
-
+    def process_message(self, session_id: str, message: str) -> Dict[str, Any]:
+        """Process a user message"""
+        # Check if session exists
+        if session_id not in self.sessions:
+            session_id = self.create_session()
+        
+        # Get current state
+        state = self.sessions[session_id]
+        
+        # Update current message
+        state["current_message"] = message
+        
+        # Run the graph
+        state_dict = dict(state)  # Make a copy of the state to pass to the graph
+        
+        # Handle LangGraph events differently based on version
+        for event in self.graph.stream(state_dict):
+            # The event might be an object with various attributes
+            # For newer versions of LangGraph, we need to handle it differently
+            if hasattr(event, 'result'):
+                # Use the result attribute if it exists
+                updated_state = event.result
+            elif hasattr(event, 'updates'):
+                # If it has 'updates', use that to update our state
+                updated_state = state_dict.copy()
+                updated_state.update(event.updates)
+            else:
+                # Fall back to using the event directly if it doesn't have 
+                # the expected attributes
+                updated_state = event
+        
+        # Update session state with the final state
+        self.sessions[session_id] = updated_state
+        
+        # Prepare response
+        response = {
+            "session_id": session_id,
+            "message": updated_state["system_message"],
+            "status": updated_state["status"].value
+        }
+        
+        if updated_state["status"] == RegistrationStatus.COMPLETED and "user_id" in updated_state["user_profile"]:
+            response["user_id"] = updated_state["user_profile"]["user_id"]
+        
+        if updated_state["missing_fields"]:
+            response["missing_fields"] = updated_state["missing_fields"]
+        
+        return response
+    
     def _update_agent_activity(self, agent_type):
         """Update agent activity indicators"""
         # Find all agent status labels
